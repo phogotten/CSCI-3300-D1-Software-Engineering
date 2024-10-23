@@ -13,7 +13,6 @@ public class CalendarAppConnector {
         calendarApp(timeZone);
     }
 
-    // Example of the existing calendarApp function
     public static void calendarApp(TimeZone timeZone) {
         // Retrieve the current date and time in the specified time zone
         Calendar calendar = Calendar.getInstance(timeZone);
