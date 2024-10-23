@@ -1,0 +1,124 @@
+package com.example.calendarapp;
+    import android.os.Bundle;
+    import android.widget.CalendarView;
+    import android.widget.TextView;
+    import androidx.appcompat.app.AppCompatActivity;
+    import java.text.SimpleDateFormat;
+    import java.util.Date;
+    import java.util.Locale;
+
+    public class MainActivity extends AppCompatActivity {
+
+        private CalendarView calendarView;
+        private TextView selectedDate;
+
+        @Override
+        protected void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            setContentView(R.layout.activity_main);
+
+            calendarView = findViewById(R.id.calendarView);
+            selectedDate = findViewById(R.id.selectedDate);
+
+            initializeCalendar();
+        }
+
+        // Top-level declaration of the calendar initialization.
+        private void initializeCalendar() {
+            calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
+            // display of the day of month/ date.
+            String date = dayOfMonth + "/" + (month + 1) + "/" + year;
+            selectedDate.setText("Selected date: " + date);
+        });
+        }
+    }
+
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simple Calendar App</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 20px;
+} //font/margins. 
+#calendar {
+    margin: 20px auto;
+}
+#selectedDate {
+    margin-top: 20px;
+    font-size: 1.5em;
+}
+</style>
+</head>
+<body>
+
+<h1>Simple Calendar App</h1>
+<div id="calendar"></div>
+<div id="selectedDate"></div>
+
+CalendarApp.initialize();
+
+<script>
+(function() {
+
+    function createCalendar() {
+        const calendar = document.getElementById('calendar');
+        const today = new Date();
+
+        const month = today.getMonth();
+        const year = today.getFullYear();
+
+
+        const table = document.createElement('table');
+        table.border = 1;
+
+
+        const header = table.insertRow();
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        days.forEach(day => {
+            const cell = document.createElement('th');
+            cell.innerText = day;
+            header.appendChild(cell);
+        });
+
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+
+        let row = table.insertRow();
+        let dayCount = 1;
+
+
+        for (let i = 0; i < 6; i++) {
+        for (let j = 0; j < 7; j++) {
+        const cell = row.insertCell();
+        if (i === 0 && j < firstDay) {
+            cell.innerText = '';
+        } else if (dayCount > totalDays) {
+            cell.innerText = '';
+        } else {
+            cell.innerText = dayCount;
+            cell.style.cursor = 'pointer';
+
+
+            cell.onclick = () => {
+                const selectedDate = `${dayCount}/${month + 1}/${year}`;
+                document.getElementById('selectedDate').innerText = `Selected date: ${selectedDate}`;
+            };
+            dayCount++;
+        }
+    }
+        row = table.insertRow();
+    }
+
+        calendar.appendChild(table);
+    }
+
+
+    window.onload = createCalendar;
+})();
