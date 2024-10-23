@@ -1,0 +1,24 @@
+import java.util.Calendar;
+import java.util.TimeZone;
+// simple java util time zone grabber from os system. needed whenever the application sets a time or pulls the date. 
+public class CalendarAppConnector {
+
+    public static void main(String[] args) {
+        // Get the system's default time zone
+        TimeZone timeZone = TimeZone.getDefault();
+        System.out.println("System Time Zone: " + timeZone.getID());
+
+        // Call the existing calendarApp function
+        calendarApp(timeZone);
+    }
+
+    // Example of the existing calendarApp function
+    public static void calendarApp(TimeZone timeZone) {
+        // Retrieve the current date and time in the specified time zone
+        Calendar calendar = Calendar.getInstance(timeZone);
+        System.out.println("Current Date and Time in " + timeZone.getID() + ": " + calendar.getTime());
+        
+        // Additional calendar functionality can be implemented here
+        // For example, displaying the current date, scheduling events, etc.
+    }
+}
