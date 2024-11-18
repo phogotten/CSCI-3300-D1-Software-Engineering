@@ -1,0 +1,164 @@
+package com.example.calendarapp;
+
+import android.graphics.Color;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.GridLayout;
+import android.widget.TextView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+
+import androidx.appcompat.app.AppCompatActivity;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
+
+public class MainActivity extends AppCompatActivity {
+
+    private Calendar calendar;
+    private TextView currentMonthText;
+    private GridLayout calendarGridLayout;
+    private Button previousMonthButton, nextMonthButton;
+
+    // Store events with the format: "year-month" as the key, and a map of day -> event description as value
+    private Map<String, Map<Integer, String>> events = new HashMap<>();
+    private int currentYear, currentMonth, currentDay;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        calendar = Calendar.getInstance();
+        currentYear = calendar.get(Calendar.YEAR);
+        currentMonth = calendar.get(Calendar.MONTH);  // 0-based month
+        currentDay = calendar.get(Calendar.DAY_OF_MONTH);  // Current day of the month
+
+        currentMonthText = findViewById(R.id.currentMonthText);
+        calendarGridLayout = findViewById(R.id.calendarGridLayout);
+        previousMonthButton = findViewById(R.id.previousMonthButton);
+        nextMonthButton = findViewById(R.id.nextMonthButton);
+
+        // Display the current month
+        updateCalendarDisplay();
+
+        // Set up listeners for navigation buttons
+        previousMonthButton.setOnClickListener(v -> {
+            calendar.add(Calendar.MONTH, -1);
+            updateCalendarDisplay();
+        });
+
+        nextMonthButton.setOnClickListener(v -> {
+            calendar.add(Calendar.MONTH, 1);
+            updateCalendarDisplay();
+        });
+    }
+
+    private void updateCalendarDisplay() {
+        // Update the current month text
+        currentMonthText.setText(String.format("%1$tB %1$tY", calendar));
+
+        // Clear the previous calendar grid
+        calendarGridLayout.removeAllViews();
+
+        // Get the first day of the month and the number of days in the month
+        int firstDayOfWeek = calendar.get(Calendar.DAY_OF_WEEK); // Sunday = 1, Monday = 2, ...
+        int daysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
+
+        // Add empty spaces for days before the first day of the month
+        for (int i = 1; i < firstDayOfWeek; i++) {
+            TextView emptyCell = new TextView(this);
+            emptyCell.setLayoutParams(new GridLayout.LayoutParams());
+            calendarGridLayout.addView(emptyCell);
+        }
+
+        // Add day buttons for each day in the month
+        for (int day = 1; day <= daysInMonth; day++) {
+            TextView dayButton = new TextView(this);
+            dayButton.setLayoutParams(new GridLayout.LayoutParams());
+            dayButton.setText(String.valueOf(day));
+            dayButton.setGravity(Gravity.CENTER);
+            dayButton.setTextSize(24);  // Text size for day numbers
+            dayButton.setPadding(16, 16, 16, 16);
+
+            // Check if the day has an event for the current month and year
+            String eventKey = currentYear + "-" + (currentMonth + 1);  // Use "year-month" as the key
+            Map<Integer, String> dayEvents = events.get(eventKey);
+            if (dayEvents != null && dayEvents.containsKey(day)) {
+                dayButton.setTextColor(Color.YELLOW);  // Make the day number yellow if it has an event
+            } else {
+                dayButton.setTextColor(Color.BLACK);  // Default color is black
+            }
+
+            // Highlight the current day
+            if (day == currentDay && calendar.get(Calendar.MONTH) == currentMonth) {
+                dayButton.setBackgroundColor(getResources().getColor(android.R.color.holo_blue_light));
+                dayButton.setTextColor(Color.WHITE);
+            }
+
+            // Set an OnClickListener to allow users to select the day and add or edit an event
+            int finalDay = day;  // Create a final variable to pass into the lambda expression
+            dayButton.setOnClickListener(v -> showAddEditEventDialog(finalDay));
+
+            // Add the day button to the grid
+            calendarGridLayout.addView(dayButton);
+        }
+    }
+
+    private void showAddEditEventDialog(int selectedDay) {
+        // Create a dialog to add or edit an event
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Add/Edit Event");
+
+        // Check if an event already exists for this day in the current month
+        String eventKey = currentYear + "-" + (currentMonth + 1);  // "year-month" as the key
+        Map<Integer, String> dayEvents = events.get(eventKey);
+        String currentEvent = null;
+        if (dayEvents != null) {
+            currentEvent = dayEvents.get(selectedDay);  // Get the current event for this day
+        }
+
+        // Set up the input field with the current event (if any)
+        final EditText input = new EditText(this);
+        if (currentEvent != null) {
+            input.setText(currentEvent);  // Pre-fill the input with the current event
+        }
+        builder.setView(input);
+
+        builder.setPositiveButton("Save Event", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String event = input.getText().toString().trim();
+
+                // Save or update the event in the map for the selected day
+                if (!event.isEmpty()) {
+                    // Store the event by "year-month"
+                    if (!events.containsKey(eventKey)) {
+                        events.put(eventKey, new HashMap<>());
+                    }
+                    events.get(eventKey).put(selectedDay, event);
+                    Toast.makeText(MainActivity.this, "Event saved for " + selectedDay + "/" + (currentMonth + 1) + "/" + currentYear, Toast.LENGTH_SHORT).show();
+                } else {
+                    // If the event is empty, remove it
+                    if (events.containsKey(eventKey)) {
+                        events.get(eventKey).remove(selectedDay);
+                        if (events.get(eventKey).isEmpty()) {
+                            events.remove(eventKey);  // Clean up if no events left for this month
+                        }
+                    }
+                    Toast.makeText(MainActivity.this, "Event removed for " + selectedDay + "/" + (currentMonth + 1) + "/" + currentYear, Toast.LENGTH_SHORT).show();
+                }
+
+                updateCalendarDisplay();  // Update the calendar view after saving or deleting the event
+            }
+        });
+
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+
+        builder.show();
+    }
+}
