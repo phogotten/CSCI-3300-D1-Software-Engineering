@@ -3,7 +3,6 @@ package com.example.calendarapp;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.View;
 import android.widget.GridLayout;
 import android.widget.TextView;
 import android.widget.Button;
@@ -11,6 +10,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 import java.util.Calendar;
@@ -22,7 +22,7 @@ public class MainActivity extends AppCompatActivity {
     private Calendar calendar;
     private TextView currentMonthText;
     private GridLayout calendarGridLayout;
-    private Button previousMonthButton, nextMonthButton;
+    private Button previousMonthButton, nextMonthButton, clearAllEventsButton;
 
     // Store events with the format: "year-month" as the key, and a map of day -> event description as value
     private Map<String, Map<Integer, String>> events = new HashMap<>();
@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
         calendarGridLayout = findViewById(R.id.calendarGridLayout);
         previousMonthButton = findViewById(R.id.previousMonthButton);
         nextMonthButton = findViewById(R.id.nextMonthButton);
+        clearAllEventsButton = findViewById(R.id.clearAllEventsButton);  // Initialize the clear button
 
         // Display the current month
         updateCalendarDisplay();
@@ -55,6 +56,11 @@ public class MainActivity extends AppCompatActivity {
         nextMonthButton.setOnClickListener(v -> {
             calendar.add(Calendar.MONTH, 1);
             updateCalendarDisplay();
+        });
+
+        // Set up listener for the "Clear All Events" button
+        clearAllEventsButton.setOnClickListener(v -> {
+            clearAllEvents();
         });
     }
 
@@ -89,9 +95,11 @@ public class MainActivity extends AppCompatActivity {
             String eventKey = currentYear + "-" + (currentMonth + 1);  // Use "year-month" as the key
             Map<Integer, String> dayEvents = events.get(eventKey);
             if (dayEvents != null && dayEvents.containsKey(day)) {
-                dayButton.setTextColor(Color.YELLOW);  // Make the day number yellow if it has an event
+                dayButton.setTextColor(Color.WHITE);  // Change text color to white for readability
+                dayButton.setBackgroundColor(Color.RED);  // Set background color to red for days with events
             } else {
-                dayButton.setTextColor(Color.BLACK);  // Default color is black
+                dayButton.setTextColor(Color.BLACK);  // Default text color is black
+                dayButton.setBackgroundColor(Color.TRANSPARENT);  // Default background color is transparent
             }
 
             // Highlight the current day
@@ -114,6 +122,9 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Add/Edit Event");
 
+        // Get the day of the week for the selected day
+        String dayOfWeek = getDayOfWeek(selectedDay);
+
         // Check if an event already exists for this day in the current month
         String eventKey = currentYear + "-" + (currentMonth + 1);  // "year-month" as the key
         Map<Integer, String> dayEvents = events.get(eventKey);
@@ -122,43 +133,83 @@ public class MainActivity extends AppCompatActivity {
             currentEvent = dayEvents.get(selectedDay);  // Get the current event for this day
         }
 
-        // Set up the input field with the current event (if any)
+        // Create a LinearLayout to organize the views in the dialog
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(16, 16, 16, 16);
+
+        // Create the EditText for event input
         final EditText input = new EditText(this);
         if (currentEvent != null) {
             input.setText(currentEvent);  // Pre-fill the input with the current event
         }
-        builder.setView(input);
 
-        builder.setPositiveButton("Save Event", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String event = input.getText().toString().trim();
+        // Add the EditText to the layout
+        layout.addView(input);
 
-                // Save or update the event in the map for the selected day
-                if (!event.isEmpty()) {
-                    // Store the event by "year-month"
-                    if (!events.containsKey(eventKey)) {
-                        events.put(eventKey, new HashMap<>());
-                    }
-                    events.get(eventKey).put(selectedDay, event);
-                    Toast.makeText(MainActivity.this, "Event saved for " + selectedDay + "/" + (currentMonth + 1) + "/" + currentYear, Toast.LENGTH_SHORT).show();
-                } else {
-                    // If the event is empty, remove it
-                    if (events.containsKey(eventKey)) {
-                        events.get(eventKey).remove(selectedDay);
-                        if (events.get(eventKey).isEmpty()) {
-                            events.remove(eventKey);  // Clean up if no events left for this month
-                        }
-                    }
-                    Toast.makeText(MainActivity.this, "Event removed for " + selectedDay + "/" + (currentMonth + 1) + "/" + currentYear, Toast.LENGTH_SHORT).show();
+        // Create a TextView to display the day of the week in green font
+        TextView dayOfWeekTextView = new TextView(this);
+        dayOfWeekTextView.setText("Day of the week: " + dayOfWeek);
+        dayOfWeekTextView.setTextColor(Color.GREEN);  // Set text color to green
+        dayOfWeekTextView.setGravity(Gravity.CENTER);
+
+        // Add the day of the week TextView below the EditText
+        layout.addView(dayOfWeekTextView);
+
+        // Set the layout for the dialog
+        builder.setView(layout);
+
+        builder.setPositiveButton("Save Event", (dialog, which) -> {
+            String event = input.getText().toString().trim();
+
+            // Save or update the event in the map for the selected day
+            if (!event.isEmpty()) {
+                // Store the event by "year-month"
+                if (!events.containsKey(eventKey)) {
+                    events.put(eventKey, new HashMap<>());
                 }
-
-                updateCalendarDisplay();  // Update the calendar view after saving or deleting the event
+                events.get(eventKey).put(selectedDay, event);
+                Toast.makeText(MainActivity.this, "Event saved for " + selectedDay + "/" + (currentMonth + 1) + "/" + currentYear, Toast.LENGTH_SHORT).show();
+            } else {
+                // If the event is empty, remove it
+                if (events.containsKey(eventKey)) {
+                    events.get(eventKey).remove(selectedDay);
+                    if (events.get(eventKey).isEmpty()) {
+                        events.remove(eventKey);  // Clean up if no events left for this month
+                    }
+                }
+                Toast.makeText(MainActivity.this, "Event removed for " + selectedDay + "/" + (currentMonth + 1) + "/" + currentYear, Toast.LENGTH_SHORT).show();
             }
+
+            updateCalendarDisplay();  // Update the calendar view after saving or deleting the event
         });
 
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
 
         builder.show();
+    }
+
+    // Helper method to get the day of the week
+    private String getDayOfWeek(int day) {
+        Calendar tempCalendar = Calendar.getInstance();
+        tempCalendar.set(currentYear, currentMonth, day);
+        int dayOfWeek = tempCalendar.get(Calendar.DAY_OF_WEEK);
+        switch (dayOfWeek) {
+            case Calendar.SUNDAY: return "Sunday";
+            case Calendar.MONDAY: return "Monday";
+            case Calendar.TUESDAY: return "Tuesday";
+            case Calendar.WEDNESDAY: return "Wednesday";
+            case Calendar.THURSDAY: return "Thursday";
+            case Calendar.FRIDAY: return "Friday";
+            case Calendar.SATURDAY: return "Saturday";
+            default: return "Unknown";
+        }
+    }
+
+    private void clearAllEvents() {
+        // Clear all events from the map
+        events.clear();
+        Toast.makeText(this, "All events cleared", Toast.LENGTH_SHORT).show();
+        updateCalendarDisplay();  // Refresh the calendar after clearing the events
     }
 }
