@@ -1,5 +1,6 @@
 package com.example.calendarapp;
 
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -7,12 +8,13 @@ import android.widget.GridLayout;
 import android.widget.TextView;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Switch;
 import android.widget.Toast;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
-import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
@@ -23,26 +25,48 @@ public class MainActivity extends AppCompatActivity {
     private TextView currentMonthText;
     private GridLayout calendarGridLayout;
     private Button previousMonthButton, nextMonthButton, clearAllEventsButton;
+    private Switch nightModeSwitch;
 
-    // Store events with the format: "year-month" as the key, and a map of day -> event description as value
-    private Map<String, Map<Integer, String>> events = new HashMap<>();
+    // Store events using "month-day-year" as the key
+    private Map<String, String> events = new HashMap<>();
     private int currentYear, currentMonth, currentDay;
+
+    // SharedPreferences key
+    private static final String PREFS_NAME = "CalendarAppPrefs";
+    private static final String NIGHT_MODE_KEY = "night_mode";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Initialize calendar
         calendar = Calendar.getInstance();
         currentYear = calendar.get(Calendar.YEAR);
         currentMonth = calendar.get(Calendar.MONTH);  // 0-based month
         currentDay = calendar.get(Calendar.DAY_OF_MONTH);  // Current day of the month
 
+        // Initialize UI components
         currentMonthText = findViewById(R.id.currentMonthText);
         calendarGridLayout = findViewById(R.id.calendarGridLayout);
         previousMonthButton = findViewById(R.id.previousMonthButton);
         nextMonthButton = findViewById(R.id.nextMonthButton);
-        clearAllEventsButton = findViewById(R.id.clearAllEventsButton);  // Initialize the clear button
+        clearAllEventsButton = findViewById(R.id.clearAllEventsButton);
+        nightModeSwitch = findViewById(R.id.nightModeSwitch);
+
+        // Load the saved night mode setting
+        SharedPreferences preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        boolean isNightMode = preferences.getBoolean(NIGHT_MODE_KEY, false);
+        applyNightMode(isNightMode);
+        nightModeSwitch.setChecked(isNightMode);
+
+        // Set up the listeners for the night mode switch
+        nightModeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            applyNightMode(isChecked);
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putBoolean(NIGHT_MODE_KEY, isChecked);
+            editor.apply();
+        });
 
         // Display the current month
         updateCalendarDisplay();
@@ -58,10 +82,24 @@ public class MainActivity extends AppCompatActivity {
             updateCalendarDisplay();
         });
 
-        // Set up listener for the "Clear All Events" button
+        // Set up listener for "Clear All Events" button
         clearAllEventsButton.setOnClickListener(v -> {
-            clearAllEvents();
+            clearAllEvents();  // Clear all events when the button is clicked
         });
+    }
+
+    private void applyNightMode(boolean isNightMode) {
+        if (isNightMode) {
+            // Apply Dark Mode
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+            getWindow().getDecorView().setBackgroundColor(Color.BLACK);
+            currentMonthText.setTextColor(Color.WHITE);
+        } else {
+            // Apply Light Mode
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+            getWindow().getDecorView().setBackgroundColor(Color.WHITE);
+            currentMonthText.setTextColor(Color.BLACK);
+        }
     }
 
     private void updateCalendarDisplay() {
@@ -91,21 +129,24 @@ public class MainActivity extends AppCompatActivity {
             dayButton.setTextSize(24);  // Text size for day numbers
             dayButton.setPadding(16, 16, 16, 16);
 
-            // Check if the day has an event for the current month and year
-            String eventKey = currentYear + "-" + (currentMonth + 1);  // Use "year-month" as the key
-            Map<Integer, String> dayEvents = events.get(eventKey);
-            if (dayEvents != null && dayEvents.containsKey(day)) {
-                dayButton.setTextColor(Color.WHITE);  // Change text color to white for readability
-                dayButton.setBackgroundColor(Color.RED);  // Set background color to red for days with events
+            // Handle the color of event days and the current day
+            String eventKey = (currentMonth + 1) + "-" + day + "-" + currentYear;
+            if (events.containsKey(eventKey)) {
+                // Event day: Red
+                dayButton.setTextColor(Color.RED);
             } else {
-                dayButton.setTextColor(Color.BLACK);  // Default text color is black
-                dayButton.setBackgroundColor(Color.TRANSPARENT);  // Default background color is transparent
+                // Default text color based on night mode
+                if (AppCompatDelegate.getDefaultNightMode() == AppCompatDelegate.MODE_NIGHT_YES) {
+                    dayButton.setTextColor(Color.WHITE);  // For night mode
+                } else {
+                    dayButton.setTextColor(Color.BLACK);  // For light mode
+                }
             }
 
-            // Highlight the current day
+            // Highlight the current day in blue
             if (day == currentDay && calendar.get(Calendar.MONTH) == currentMonth) {
                 dayButton.setBackgroundColor(getResources().getColor(android.R.color.holo_blue_light));
-                dayButton.setTextColor(Color.WHITE);
+                dayButton.setTextColor(Color.WHITE);  // Override with white text on blue background
             }
 
             // Set an OnClickListener to allow users to select the day and add or edit an event
@@ -122,94 +163,55 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Add/Edit Event");
 
-        // Get the day of the week for the selected day
-        String dayOfWeek = getDayOfWeek(selectedDay);
-
-        // Check if an event already exists for this day in the current month
-        String eventKey = currentYear + "-" + (currentMonth + 1);  // "year-month" as the key
-        Map<Integer, String> dayEvents = events.get(eventKey);
-        String currentEvent = null;
-        if (dayEvents != null) {
-            currentEvent = dayEvents.get(selectedDay);  // Get the current event for this day
-        }
-
-        // Create a LinearLayout to organize the views in the dialog
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(16, 16, 16, 16);
-
-        // Create the EditText for event input
+        // Create input field for the event description
         final EditText input = new EditText(this);
+        builder.setView(input);
+
+        // Get the event for this day (if any) and pre-fill the input field
+        String eventKey = (currentMonth + 1) + "-" + selectedDay + "-" + currentYear;
+        String currentEvent = events.get(eventKey);
         if (currentEvent != null) {
-            input.setText(currentEvent);  // Pre-fill the input with the current event
+            input.setText(currentEvent);
         }
 
-        // Add the EditText to the layout
-        layout.addView(input);
-
-        // Create a TextView to display the day of the week in green font
-        TextView dayOfWeekTextView = new TextView(this);
-        dayOfWeekTextView.setText("Day of the week: " + dayOfWeek);
-        dayOfWeekTextView.setTextColor(Color.GREEN);  // Set text color to green
-        dayOfWeekTextView.setGravity(Gravity.CENTER);
-
-        // Add the day of the week TextView below the EditText
-        layout.addView(dayOfWeekTextView);
-
-        // Set the layout for the dialog
-        builder.setView(layout);
+        // Add day of the week in green text after the EditText
+        TextView dayOfWeekText = new TextView(this);
+        dayOfWeekText.setText("Day of the week: " + getDayOfWeek(selectedDay));
+        dayOfWeekText.setTextColor(Color.GREEN);
+        builder.setView(input);
+        builder.setCustomTitle(dayOfWeekText);
 
         builder.setPositiveButton("Save Event", (dialog, which) -> {
             String event = input.getText().toString().trim();
 
-            // Save or update the event in the map for the selected day
+            // Save or update the event
             if (!event.isEmpty()) {
-                // Store the event by "year-month"
-                if (!events.containsKey(eventKey)) {
-                    events.put(eventKey, new HashMap<>());
-                }
-                events.get(eventKey).put(selectedDay, event);
-                Toast.makeText(MainActivity.this, "Event saved for " + selectedDay + "/" + (currentMonth + 1) + "/" + currentYear, Toast.LENGTH_SHORT).show();
+                events.put(eventKey, event);
+                Toast.makeText(MainActivity.this, "Event saved!", Toast.LENGTH_SHORT).show();
             } else {
-                // If the event is empty, remove it
-                if (events.containsKey(eventKey)) {
-                    events.get(eventKey).remove(selectedDay);
-                    if (events.get(eventKey).isEmpty()) {
-                        events.remove(eventKey);  // Clean up if no events left for this month
-                    }
-                }
-                Toast.makeText(MainActivity.this, "Event removed for " + selectedDay + "/" + (currentMonth + 1) + "/" + currentYear, Toast.LENGTH_SHORT).show();
+                // Remove the event if empty
+                events.remove(eventKey);
+                Toast.makeText(MainActivity.this, "Event removed!", Toast.LENGTH_SHORT).show();
             }
-
-            updateCalendarDisplay();  // Update the calendar view after saving or deleting the event
+            updateCalendarDisplay();  // Refresh the calendar
         });
 
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-
         builder.show();
     }
 
-    // Helper method to get the day of the week
     private String getDayOfWeek(int day) {
         Calendar tempCalendar = Calendar.getInstance();
         tempCalendar.set(currentYear, currentMonth, day);
         int dayOfWeek = tempCalendar.get(Calendar.DAY_OF_WEEK);
-        switch (dayOfWeek) {
-            case Calendar.SUNDAY: return "Sunday";
-            case Calendar.MONDAY: return "Monday";
-            case Calendar.TUESDAY: return "Tuesday";
-            case Calendar.WEDNESDAY: return "Wednesday";
-            case Calendar.THURSDAY: return "Thursday";
-            case Calendar.FRIDAY: return "Friday";
-            case Calendar.SATURDAY: return "Saturday";
-            default: return "Unknown";
-        }
+        String[] days = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+        return days[dayOfWeek - 1];  // Adjust for 1-based index
     }
 
     private void clearAllEvents() {
-        // Clear all events from the map
+        // Remove all events
         events.clear();
-        Toast.makeText(this, "All events cleared", Toast.LENGTH_SHORT).show();
-        updateCalendarDisplay();  // Refresh the calendar after clearing the events
+        Toast.makeText(MainActivity.this, "All events cleared!", Toast.LENGTH_SHORT).show();
+        updateCalendarDisplay();  // Refresh the calendar display
     }
 }
