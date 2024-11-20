@@ -1,3 +1,4 @@
+
 package com.example.calendarapp;
 
 import android.content.SharedPreferences;
@@ -174,10 +175,10 @@ public class MainActivity extends AppCompatActivity {
             input.setText(currentEvent);
         }
 
-        // Add day of the week in green text after the EditText
+        // Add day of the week in purple text after the EditText
         TextView dayOfWeekText = new TextView(this);
         dayOfWeekText.setText("Day of the week: " + getDayOfWeek(selectedDay));
-        dayOfWeekText.setTextColor(Color.GREEN);
+        dayOfWeekText.setTextColor(Color.parseColor("#800080"));  // Purple color
         builder.setView(input);
         builder.setCustomTitle(dayOfWeekText);
 
