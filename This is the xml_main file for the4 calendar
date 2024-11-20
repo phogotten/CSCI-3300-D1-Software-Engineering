@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -51,4 +50,13 @@
         android:verticalSpacing="4dp"
         android:padding="8dp" />
 
+    <!-- Button to clear all events -->
+    <Button
+        android:id="@+id/clearAllEventsButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Clear All Events"
+        android:textSize="16sp"
+        android:layout_gravity="center"
+        android:layout_marginTop="16dp" />  <!-- Fixed marginTop to layout_marginTop -->
 </LinearLayout>
