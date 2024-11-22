@@ -29,7 +29,7 @@ Registry:
 ```
 ## Installation
 
-1) Download the file in our main repository named "Life+ (Ultra)".zip.
+1) Download the file in our main repository named "Life+ (Ultra).zip".
 2) Unzip the files.
 3) Open Android Studio or your preferred developing software (experience may vary).
 4) Open the project in your preferred developing software.
